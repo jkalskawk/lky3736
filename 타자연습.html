@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>타자 연습</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+
+        .container {
+            max-width: 800px; /* 컨테이너 너비 확장 */
+            margin: auto;
+        }
+
+        textarea {
+            width: 100%;
+            height: 200px;  /* 10줄로 보이도록 설정 (약 200px 높이) */
+            margin: 10px 0;
+            font-size: 16px;
+            resize: none; /* 크기 조절 비활성화 */
+        }
+
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #practiceText {
+            font-size: 18px;
+            padding: 10px;
+            background-color: #f9f9f9;
+            border: 1px solid #ccc;
+            margin: 10px 0;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            user-select: none;
+            text-align: left;
+        }
+
+        #resultSection {
+            margin-top: 20px;
+        }
+
+        #practiceTextContainer {
+            margin-bottom: 20px;
+        }
+
+        .resultForPage {
+            margin-top: 10px;
+        }
+
+        .error {
+            color: red;
+            font-weight: bold;
+        }
+
+        #pageNumber {
+            font-size: 16px;
+            margin-top: 10px;
+        }
+
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>타자 연습</h1>
+        <textarea id="textInput" placeholder="연습할 글을 입력하세요"></textarea>
+        <button id="startButton">연습 시작</button>
+        <div id="practiceSection" class="hidden">
+            <div id="practiceTextContainer">
+                <p id="practiceText"></p>
+            </div>
+            <div id="pageNumber"></div> <!-- 현재 페이지와 총 페이지 표시 -->
+            <textarea id="typingArea" placeholder="여기에 입력하세요" oninput="checkTyping()"></textarea>
+            <button id="finishButton">완료</button>
+        </div>
+        <div id="resultSection" class="hidden">
+            <h2>결과</h2>
+            <div id="pageResults"></div>
+        </div>
+    </div>
+
+    <script>
+        let startTime;
+        let currentPage = 0; // 현재 페이지
+        let pages = [];
+        let originalText = ""; // 원본 텍스트 저장
+        let userTypingResults = []; // 페이지별 정확도 결과
+
+        // 연습 시작 버튼 클릭
+        document.getElementById("startButton").addEventListener("click", () => {
+            const textInput = document.getElementById("textInput").value.trim();
+            if (!textInput) {
+                alert("연습할 글을 입력하세요!");
+                return;
+            }
+
+            // 원본 텍스트 저장
+            originalText = textInput;
+
+            // 글을 10줄씩 나누기
+            pages = splitTextIntoPages(textInput, 10);
+
+            // 첫 페이지를 표시
+            showPage(currentPage);
+
+            // 텍스트 표시
+            document.getElementById("practiceSection").classList.remove("hidden");
+            document.getElementById("textInput").classList.add("hidden");
+            document.getElementById("startButton").classList.add("hidden");
+
+            startTime = Date.now();
+        });
+
+        // 완료 버튼 클릭
+        document.getElementById("finishButton").addEventListener("click", () => {
+            const userText = document.getElementById("typingArea").value.trim();
+
+            // 정확도 계산
+            const accuracy = calculateAccuracy(pages[currentPage], userText);
+
+            // 페이지별 결과 저장
+            userTypingResults[currentPage] = accuracy;
+
+            // 결과 표시
+            displayResults();
+
+            // 현재 페이지가 마지막 페이지일 경우 결과 섹션 표시
+            if (currentPage === pages.length - 1) {
+                document.getElementById("resultSection").classList.remove("hidden");
+            } else {
+                // 다음 페이지로 이동
+                currentPage++;
+                showPage(currentPage);
+            }
+        });
+
+        // 정확도 계산
+        function calculateAccuracy(original, typed) {
+            const originalWords = original.split(/\s+/);
+            const typedWords = typed.split(/\s+/);
+
+            let correctCount = 0;
+            originalWords.forEach((word, index) => {
+                if (word === typedWords[index]) correctCount++;
+            });
+
+            return ((correctCount / originalWords.length) * 100).toFixed(2);
+        }
+
+        // 텍스트를 10줄씩 나누기
+        function splitTextIntoPages(text, linesPerPage) {
+            const lines = text.split('\n');
+            let pages = [];
+            let page = [];
+
+            lines.forEach(line => {
+                if (page.length < linesPerPage) {
+                    page.push(line);
+                } else {
+                    pages.push(page.join('\n'));
+                    page = [line]; // 새로운 페이지 시작
+                }
+            });
+
+            if (page.length > 0) pages.push(page.join('\n')); // 마지막 페이지 추가
+
+            return pages;
+        }
+
+        // 페이지 보여주기
+        function showPage(pageNumber) {
+            const practiceTextElement = document.getElementById("practiceText");
+            const pageNumberElement = document.getElementById("pageNumber");
+            const totalPages = pages.length;
+
+            // 텍스트 업데이트
+            practiceTextElement.textContent = pages[pageNumber];
+
+            // 페이지 번호 표시
+            pageNumberElement.textContent = `페이지 ${pageNumber + 1} / ${totalPages}`;
+
+            // 타이핑 영역 초기화
+            document.getElementById("typingArea").value = "";
+        }
+
+        // 페이지별 결과 표시
+        function displayResults() {
+            const pageResultsElement = document.getElementById("pageResults");
+            pageResultsElement.innerHTML = '';
+
+            userTypingResults.forEach((accuracy, index) => {
+                const resultDiv = document.createElement("div");
+                resultDiv.classList.add("resultForPage");
+                resultDiv.innerHTML = `페이지 ${index + 1}: 정확도 ${accuracy}%`;
+                pageResultsElement.appendChild(resultDiv);
+            });
+        }
+
+        // 타이핑한 텍스트와 원본 텍스트 비교하여 오류 부분 빨간색 표시
+        function checkTyping() {
+            const userText = document.getElementById("typingArea").value;
+            const practiceText = pages[currentPage];
+            const typingArea = document.getElementById("typingArea");
+
+            let matchedText = '';
+            let errorText = '';
+
+            // 비교하여 맞는 부분은 그대로, 틀린 부분은 빨간색으로 표시
+            for (let i = 0; i < userText.length; i++) {
+                if (userText[i] === practiceText[i]) {
+                    matchedText += userText[i];
+                } else {
+                    errorText += userText[i];
+                }
+            }
+
+            typingArea.value = matchedText + errorText;
+            typingArea.style.color = errorText ? "red" : "black"; // 오류가 있으면 빨간색으로 표시
+        }
+
+        // 복사/붙여넣기 방지
+        document.getElementById("typingArea").addEventListener("paste", (e) => {
+            e.preventDefault();
+            alert("복사/붙여넣기는 사용할 수 없습니다.");
+        });
+    </script>
+</body>
+</html>
